@@ -78,7 +78,7 @@ export class ScryFall {
             return uniquePrintings;
 
 
-        } catch (error) {
+        } catch (error: any) {
             throw new Error(`Failed to fetch card data: ${error.message}`);
         }
     }
