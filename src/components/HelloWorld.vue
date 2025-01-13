@@ -1,19 +1,91 @@
 <template>
   <h1>Heello world</h1>
-  <button @click="retrieveAll">retrieveCardPrintings</button>
+  <button @click="fetchAll">retrieveCardPrintings</button>
   <button @click="readLocalStorageForAll">readLocalStorageForAll</button>
   <button @click="getCardSetsOnly">printSets</button>
-  <button @click="groupBySharedGroups">groupByDuplicateGroups</button>
+  <button @click="getGroupedSets">getGroupedSets</button>
+  <br>
+  <div>
+    <pre>{{ sharedSetsDisplay }}</pre>
+  </div>
 </template>
 
 <script setup lang="ts">
 import {ScryFall} from '../apiWrapper/ScryFall.ts'
+import {type Ref, ref} from "vue";
 
 const scryFall = new ScryFall()
 
 
 const cardNames = ["Lightning Bolt", "Shock"]
+const sharedSetsDisplay: Ref<any> = ref(null)
 
+
+async function getGroupedSets() {
+  const sets = await groupBySets();
+  console.log("sets", sets)
+  const filteredSets = {
+    "shared": {},
+    "singles": {}
+  }
+  const setSeen = new Set()
+  const cardsAdded = new Set()
+
+  const sortedData =
+      Object.entries(sets).sort(([, a], [, b]) => {
+        console.log(a)
+        return b.length - a.length
+      })
+  // sorted data where each value is [setId, [...array_values]]
+
+  for (const cardName of cardNames) {
+    // if (cardsAdded.has(cardName)) {
+    //   console.log("card already seen in another set skipping!")
+    //   continue;
+    // }
+
+    // console.log("cardname", cardName)
+    // console.log("sortedData", sortedData)
+    for (const setData of sortedData) {
+      // console.log("setData", setData)
+      const setId = setData[0]
+      const cardsList = setData[1]
+      // console.log('setId', setId, cardsList)
+      if (!cardsList.includes(cardName)) {
+        continue;
+      }
+      if (!setSeen.has(setId)) {
+        setSeen.add(cardName);
+        // remove the set list by that id
+
+        const hasMultiple = cardsList.length > 1
+        if (hasMultiple) {
+          for (const card of cardsList) {
+            cardsAdded.add(card);
+          }
+          filteredSets["shared"][setId] = [...cardsList]
+          // delete cardsList[setId];
+          // break;
+        }
+      }
+    }
+
+  }
+  console.log("filteredSets", filteredSets)
+  console.log("filteredSets SHARED", filteredSets["shared"])
+  for (const setData of sortedData) {
+    // console.log("setData", setData)
+    const setId = setData[0]
+    const cardsList = setData[1]
+    // this is stupid don't add cards you've seen before baka!
+    if (!setSeen.has(setId)) {
+      filteredSets["singles"][setId] = [...cardsList]
+    }
+  }
+  console.log("filteredSets Singles", filteredSets["singles"])
+  // returns all grouped cards if possible and then returns all remaining singles should probably filter out if the card has been seen before
+  return filteredSets
+}
 
 // fetches or reads from local storage
 async function fetchAll() {
@@ -25,7 +97,7 @@ async function fetchAll() {
   const promises = cardNames.map((cardName, index) => {
     return new Promise((resolve) => {
       setTimeout(async () => {
-         // Await the async function
+        // Await the async function
         result[cardName] = await getCardPrintings(cardName); // Add the result to the dictionary
         resolve(); // Resolve the promise when done
       }, delay * index);
@@ -82,13 +154,17 @@ function checkStorage(cardName: string) {
   return null;
 }
 
-async function groupBySharedGroups() {
+// groups the cards by sets does NOT do any filtering or grouping beyond that
+async function groupBySets() {
   const cardSetsOnly: Record<any, any> = await getCardSetsOnly();
   const allSets: Record<string, Array<string>> = {}
+
   for (const [cardName, cardSets] of Object.entries(cardSetsOnly)) {
+    // just in case prevent duplicate work
     if (allSets[cardName]) {
       continue;
     }
+
     for (const set of cardSets) {
       // console.log(set)
       if (allSets[set]) {
@@ -98,16 +174,8 @@ async function groupBySharedGroups() {
       }
     }
   }
-  console.log("allSets", allSets);
 
-  const sharedSets: Record<string, Array<string>> = {}
-  for (const [setName, cardsInSet] of Object.entries(allSets)) {
-    if( cardsInSet.length > 1) {
-      sharedSets[setName] = cardsInSet
-    }
-  }
-  console.log("sharedSets", sharedSets);
-
+  return allSets;
 }
 
 </script>
