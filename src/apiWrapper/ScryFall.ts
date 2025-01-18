@@ -83,6 +83,16 @@ export class ScryFall {
         }
     }
 
+    async getAllSets() {
+        const url = `${baseUrl}/sets`
+        const setResponse = await fetch(url);
+        console.log("setResponse", setResponse);
+        const setResponseJson = await setResponse.json();
+        console.log("setResponseJSON", setResponseJson.data);
+        return setResponseJson && setResponseJson.length ? setResponseJson.data : null;
+
+    }
+
 // // Example usage
 //     async example() {
 //         try {

@@ -4,6 +4,7 @@
   <button @click="readLocalStorageForAll">readLocalStorageForAll</button>
   <button @click="getCardSetsOnly">printSets</button>
   <button @click="getGroupedSets">getGroupedSets</button>
+  <button @click="getGroupAllSetsByCode">getGroupAllSetsByCode</button>
   <br>
   <div>
     <pre>{{ sharedSetsDisplay }}</pre>
@@ -20,6 +21,17 @@ const scryFall = new ScryFall()
 const cardNames = ["Lightning Bolt", "Shock"]
 const sharedSetsDisplay: Ref<any> = ref(null)
 
+async function getGroupAllSetsByCode() {
+  let allSets: Array<any> = checkStorage("allSets")
+  if (!allSets) {
+    allSets = await scryFall.getAllSets()
+  }
+  const setsByCode = {}
+  for (const setObj of allSets) {
+    setsByCode[setObj.code] = {...setObj}
+  }
+  return allSets
+}
 
 async function getGroupedSets() {
   const sets = await groupBySets();
@@ -71,12 +83,14 @@ async function getGroupedSets() {
     }
 
   }
+
   console.log("filteredSets", filteredSets)
   console.log("filteredSets SHARED", filteredSets["shared"])
   for (const setData of sortedData) {
     // console.log("setData", setData)
     const setId = setData[0]
     const cardsList = setData[1]
+
     // this is stupid don't add cards you've seen before baka!
     if (!setSeen.has(setId)) {
       filteredSets["singles"][setId] = [...cardsList]
