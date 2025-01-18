@@ -89,7 +89,8 @@ export class ScryFall {
         console.log("setResponse", setResponse);
         const setResponseJson = await setResponse.json();
         console.log("setResponseJSON", setResponseJson.data);
-        return setResponseJson && setResponseJson?.data.length ? setResponseJson.data : null;
+        return setResponseJson && setResponseJson.length ? setResponseJson.data : null;
+
     }
 
 // // Example usage
