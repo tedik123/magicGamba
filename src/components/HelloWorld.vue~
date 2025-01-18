@@ -175,7 +175,7 @@ async function getGroupAllSetsByCode() {
 
 
 async function getGroupedSets(cardNames: string[]) {
-  if (!cardNames) {
+  if (!cardNames.length) {
     return {}
   }
   const sets = await groupBySets();
