@@ -29,7 +29,7 @@ function parseInput() {
   console.log(textAreaInput.value)
   const parsedCards = parseMoxfieldData(textAreaInput.value);
   // Log the parsed data
-  // console.log("parsedCards", parsedCards);
+  console.log("parsedCards", parsedCards);
   emits("parsedInput", parsedCards);
 }
 

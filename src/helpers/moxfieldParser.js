@@ -94,28 +94,43 @@ SIDEBOARD:
 // Function to parse the Moxfield data into an array of objects
 export function parseMoxfieldData(data) {
     const lines = data.split('\n').filter(line => line.trim() !== '');
-
     const parsedData = [];
-
     let isSideboard = false;
 
     lines.forEach(line => {
+        // Skip empty lines and sideboard marker
         if (line.toLowerCase() === 'sideboard:') {
             isSideboard = true;
             return;
         }
 
-        // Match cards with possible sets and quantities
-        const regex = /^(\d+)\s+(.+?)\s+\((\w+)\)\s+(\d+.*)/;
-        const match = line.match(regex);
+        // Try matching full format first: quantity + name + (set) + number
+        const fullFormatRegex = /^(\d+)\s+(.+?)\s+\((\w+)\)\s+(\d+.*)/;
+        const fullMatch = line.match(fullFormatRegex);
 
-        if (match) {
-            const [_, quantity, name, set, cardNumber] = match;
+        if (fullMatch) {
+            const [_, quantity, name, set, cardNumber] = fullMatch;
             parsedData.push({
                 quantity: parseInt(quantity, 10),
                 name: name.trim(),
                 set: set.trim(),
                 cardNumber: cardNumber.trim(),
+                sideboard: isSideboard
+            });
+            return;
+        }
+
+        // Try matching simple format: quantity + name
+        const simpleFormatRegex = /^(\d+)\s+(.+)$/;
+        const simpleMatch = line.match(simpleFormatRegex);
+
+        if (simpleMatch) {
+            const [_, quantity, name] = simpleMatch;
+            parsedData.push({
+                quantity: parseInt(quantity, 10),
+                name: name.trim(),
+                set: null,
+                cardNumber: null,
                 sideboard: isSideboard
             });
         }

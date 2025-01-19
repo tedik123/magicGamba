@@ -83,8 +83,8 @@ async function loadAllSets() {
   await buildAvailableSets(cardNames)
 }
 
-async function buildAvailableSets(cardNames: string[], setCodesToIgnore: string[] = []) {
-   const setsAvailable = Object.entries(await getGroupedSets(cardNames))
+async function buildAvailableSets(cardNames: string[], setCodesToIgnore: string[] = [], alreadyPickedCards:string[] = []) {
+   const setsAvailable = Object.entries(await getGroupedSets(cardNames, alreadyPickedCards))
       .filter(([setCode]) => !setCodesToIgnore.includes(setCode))
       .map(([setCode, cards]) => ({ setCode, cards }));
 
@@ -101,7 +101,8 @@ async function pickSet(setCode: string) {
   pickedSets.value.push(setCode)
   let remainingCards = cardNames.filter(cardName => !pickedCards.value.includes(cardName))
   // this could be saved off so we don't have to rebuild everytime
-  const originalCardsBySet: Record<string, any> = await getGroupedSets(remainingCards)
+  // is this gonna cause issues?? with passing in pickedCards
+  const originalCardsBySet: Record<string, any> = await getGroupedSets(remainingCards, pickedCards.value)
   const cardsPicked = originalCardsBySet[setCode]
   cardsInPickedSet[setCode] = cardsPicked
   for (const card of cardsPicked) {
@@ -114,7 +115,7 @@ async function pickSet(setCode: string) {
   remainingCards = cardNames.filter(cardName => !pickedCards.value.includes(cardName))
   console.log("remaining cards", remainingCards)
   const remainingCardsBySet = Object.fromEntries(
-      Object.entries(await getGroupedSets(remainingCards))
+      Object.entries(await getGroupedSets(remainingCards, pickedCards.value))
           .filter(([setCode, _cards]) => !pickedSets.value.includes(setCode))
   )
   console.log("cardsBySet", remainingCardsBySet)
@@ -124,7 +125,7 @@ async function pickSet(setCode: string) {
   console.log("cardsPicked", cardsPicked)
 
 
-  await buildAvailableSets(remainingCards, pickedSets.value)
+  await buildAvailableSets(remainingCards, pickedSets.value, pickedCards.value)
 }
 
 async function getGroupAllSetsByCode() {
@@ -145,7 +146,8 @@ async function getGroupAllSetsByCode() {
 
 
 
-async function getGroupedSets(cardNames: string[]) {
+// ignored cards names just aren't copied from the set data
+async function getGroupedSets(cardNames: string[], ignoredCardNames: string[] = []) {
   if (!cardNames.length) {
     return {}
   }
@@ -173,12 +175,12 @@ async function getGroupedSets(cardNames: string[]) {
     for (const setData of sortedData) {
       // console.log("setData", setData)
       const setId = setData[0]
-      const cardsList = setData[1]
+      const cardsList = setData[1].filter( cardName => !ignoredCardNames.includes(cardName))
       // console.log('setId', setId, cardsList)
       if (!cardsList.includes(cardName)) {
         continue;
       }
-      if (!setSeen.has(setId)) {
+      if (!setSeen.has(setId) && cardsList.length) {
         setSeen.add(cardName);
         // remove the set list by that id
 
@@ -199,10 +201,10 @@ async function getGroupedSets(cardNames: string[]) {
   for (const setData of sortedData) {
     // console.log("setData", setData)
     const setId = setData[0]
-    const cardsList = setData[1]
+    const cardsList = setData[1].filter(cardName => !ignoredCardNames.includes(cardName))
 
     // this is stupid don't add cards you've seen before baka!
-    if (!setSeen.has(setId)) {
+    if (!setSeen.has(setId) && cardsList.length) {
       filteredSets[setId] = [...cardsList]
     }
   }
@@ -290,10 +292,6 @@ async function groupBySets() {
   const allSets: Record<string, Array<string>> = {}
 
   for (const [cardName, cardSets] of Object.entries(cardSetsOnly)) {
-    // just in case prevent duplicate work
-    if (allSets[cardName]) {
-      continue;
-    }
 
     for (const set of cardSets) {
       // console.log(set)
