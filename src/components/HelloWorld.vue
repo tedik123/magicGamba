@@ -1,21 +1,38 @@
 <template>
-  <h1>Heello world</h1>
-  <button @click="fetchAll">retrieveCardPrintings</button>
-  <button @click="readLocalStorageForAll">readLocalStorageForAll</button>
-  <button @click="getCardSetsOnly">printSets</button>
-  <button @click="()=> getGroupedSets(cardNames)">getGroupedSets</button>
-  <button @click="getGroupAllSetsByCode">getGroupAllSetsByCode</button>
-  <br>
-  <div>
-    <pre>{{ sharedSetsDisplay }}</pre>
-  </div>
+  <h1>Hello world!</h1>
+  <MoxfieldParser @parsedInput="handleParsedInput"/>
+<!--  <button @click="fetchAll">retrieveCardPrintings</button>-->
+<!--  <button @click="readLocalStorageForAll">readLocalStorageForAll</button>-->
+<!--  <button @click="getCardSetsOnly">printSets</button>-->
+<!--  <button @click="()=> getGroupedSets(cardNames)">getGroupedSets</button>-->
+<!--  <button @click="getGroupAllSetsByCode">getGroupAllSetsByCode</button>-->
+<!--  <br>-->
+<!--  <div>-->
+<!--    <pre>{{ sharedSetsDisplay }}</pre>-->
+<!--  </div>-->
+
   <br>
   <br>
   <button @click="loadAllSets">Load All Sets</button>
+
+
+  <div v-show="pickedSets.length">
+    <br><br>
+   <h2> Sets Chosen:</h2>
+    <div v-for="setCode in pickedSets" :key="setCode">
+      <span class="set-name-header">{{allSetsByCode[setCode].name}} ({{setCode }}) ({{cardsInPickedSet[setCode]?.length}} cards) </span>
+      <pre style="white-space: pre-wrap"> {{ cardsInPickedSet[setCode]?.join(", ") }}</pre>
+    </div>
+  </div>
+  <br>
+  <br>
+
   <div>
-    <div v-for="set in availableSetsAndCardsPerSet">
-      <pre> {{allSetsByCode[set.setCode].name}} ({{set.setCode }}) ({{set.cards.length}} cards) ||| {{ set.cards.join(", ") }}</pre>
-      <button @click="()=> pickSet(set.setCode)">Pick this set {{set.setCode}}</button>
+    <div v-for="set in availableSetsAndCardsPerSet" :key="set.setCode+set.cards.length">
+      <button @click="()=> pickSet(set.setCode)"><span class="set-name-header">{{allSetsByCode[set.setCode].name}} ({{set.setCode }}) ({{set.cards.length}} cards) </span></button>
+      <pre style="white-space: pre-wrap">{{ set.cards.join(", ") }}</pre>
+      <br>
+<!--      <button @click="()=> pickSet(set.setCode)">Pick this set {{set.setCode}}</button>-->
     </div>
   </div>
 
@@ -23,17 +40,38 @@
 
 <script setup lang="ts">
 import {ScryFall} from '../apiWrapper/ScryFall.ts'
-import {type Ref, ref} from "vue";
-import {build} from "vite";
+import {reactive, type Ref, ref} from "vue";
+import MoxfieldParser from "./MoxfieldParser.vue";
 
 const scryFall = new ScryFall()
 
 
-const cardNames = ["Lightning Bolt", "Shock"]
+function handleParsedInput(parsedInput: Array<Record<string, string>>) {
+  // Removes land as it's not relevant for opening packs
+  // console.log("received input", parsedInput)
+  // const basicLands = [
+  //   { name: "plains", type: "Basic Land", color: "White" },
+  //   { name: "island", type: "Basic Land", color: "Blue" },
+  //   { name: "swamp", type: "Basic Land", color: "Black" },
+  //   { name: "mountain", type: "Basic Land", color: "Red" },
+  //   { name: "forest", type: "Basic Land", color: "Green" }
+  // ];
+  const basicLands = ["plains", "island", "mountain", "forest", "swamp"];
+  cardNames = []
+  for (const card of parsedInput) {
+    if(!cardNames.includes(card.name) && !basicLands.includes(card.name.toLowerCase()) ) {
+        cardNames.push(card.name)
+    }
+  }
+  console.log("Card names!", cardNames)
+}
+
+let cardNames = ["Lightning Bolt", "Shock"]
 const sharedSetsDisplay: Ref<any> = ref(null)
 
 const pickedCards = ref<string[]>([])
 const pickedSets= ref<string[]>([])
+const cardsInPickedSet = reactive({})
 
 const availableSetsAndCardsPerSet = ref<Record<string, any>[]>([])
 
@@ -65,6 +103,7 @@ async function pickSet(setCode: string) {
   // this could be saved off so we don't have to rebuild everytime
   const originalCardsBySet: Record<string, any> = await getGroupedSets(remainingCards)
   const cardsPicked = originalCardsBySet[setCode]
+  cardsInPickedSet[setCode] = cardsPicked
   for (const card of cardsPicked) {
     if(!pickedCards.value.includes(card)) {
       pickedCards.value.push(card)
@@ -90,8 +129,10 @@ async function pickSet(setCode: string) {
 
 async function getGroupAllSetsByCode() {
   let allSets: Array<any> = checkStorage("allSets")
+  console.log("all sets check")
   if (!allSets) {
     allSets = await scryFall.getAllSets()
+    localStorage.setItem("allSets", JSON.stringify(allSets));
   }
   const setsByCode: Record<string, any> = {}
   allSets.forEach((setObj: any) => {
@@ -172,7 +213,7 @@ async function getGroupedSets(cardNames: string[]) {
 
 // fetches or reads from local storage
 async function fetchAll() {
-  const delay = 50;
+  const delay = 100;
 
   // Initialize an empty object to accumulate the results
   const result: Record<string, Record<any, any>> = {};
@@ -272,5 +313,9 @@ async function groupBySets() {
 <style scoped>
 .read-the-docs {
   color: #888;
+}
+.set-name-header {
+  font-weight: bold;
+  font-size: 1.2rem;
 }
 </style>
