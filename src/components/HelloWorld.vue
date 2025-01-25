@@ -65,7 +65,7 @@ function handleParsedInput(parsedInput: Array<Record<string, string>>) {
   }
   console.log("Card names!", cardNames)
 }
- console.log("dummy")
+
 let cardNames = ["Lightning Bolt", "Shock"]
 const sharedSetsDisplay: Ref<any> = ref(null)
 
