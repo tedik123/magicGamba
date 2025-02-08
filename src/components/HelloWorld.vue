@@ -22,6 +22,8 @@
     <div v-for="setCode in pickedSets" :key="setCode">
       <span class="set-name-header">{{allSetsByCode[setCode].name}} ({{setCode }}) ({{cardsInPickedSet[setCode]?.length}} cards) </span>
       <pre style="white-space: pre-wrap"> {{ cardsInPickedSet[setCode]?.join(", ") }}</pre>
+      <br>
+      <pre style="white-space: pre-wrap"> Additionally:{{originalSetsByCard[setCode]?.join(", ")}}</pre>
     </div>
   </div>
   <br>
@@ -41,6 +43,7 @@
 <script setup lang="ts">
 import {ScryFall} from '../apiWrapper/ScryFall.ts'
 import {reactive, type Ref, ref} from "vue";
+import {deepCopy} from "../helpers/deepCopy"
 import MoxfieldParser from "./MoxfieldParser.vue";
 
 const scryFall = new ScryFall()
@@ -48,14 +51,6 @@ const scryFall = new ScryFall()
 
 function handleParsedInput(parsedInput: Array<Record<string, string>>) {
   // Removes land as it's not relevant for opening packs
-  // console.log("received input", parsedInput)
-  // const basicLands = [
-  //   { name: "plains", type: "Basic Land", color: "White" },
-  //   { name: "island", type: "Basic Land", color: "Blue" },
-  //   { name: "swamp", type: "Basic Land", color: "Black" },
-  //   { name: "mountain", type: "Basic Land", color: "Red" },
-  //   { name: "forest", type: "Basic Land", color: "Green" }
-  // ];
   const basicLands = ["plains", "island", "mountain", "forest", "swamp"];
   cardNames = []
   for (const card of parsedInput) {
@@ -66,20 +61,25 @@ function handleParsedInput(parsedInput: Array<Record<string, string>>) {
   console.log("Card names!", cardNames)
 }
 
-let cardNames = ["Lightning Bolt", "Shock"]
+let cardNames = ["Lightning Bolt", "Shock", "Ajani's Welcome"]
 const sharedSetsDisplay: Ref<any> = ref(null)
+
 
 const pickedCards = ref<string[]>([])
 const pickedSets= ref<string[]>([])
 const cardsInPickedSet = reactive({})
 
 const availableSetsAndCardsPerSet = ref<Record<string, any>[]>([])
+let originalSetsByCard = {}
 
 // warning this will be an issue
 // let allSetsByCode = ref<Record<string, any>>({})
 let allSetsByCode = {}
 async function loadAllSets() {
   allSetsByCode = await getGroupAllSetsByCode()
+  originalSetsByCard = await getGroupedSets(cardNames)
+  // deep copy original
+  // originaAllSetsByCode = deepCopy(allSetsByCode)
   await buildAvailableSets(cardNames)
 }
 
@@ -165,13 +165,7 @@ async function getGroupedSets(cardNames: string[], ignoredCardNames: string[] = 
   // sorted data where each value is [setId, [...array_values]]
 
   for (const cardName of cardNames) {
-    // if (cardsAdded.has(cardName)) {
-    //   console.log("card already seen in another set skipping!")
-    //   continue;
-    // }
 
-    // console.log("cardname", cardName)
-    // console.log("sortedData", sortedData)
     for (const setData of sortedData) {
       // console.log("setData", setData)
       const setId = setData[0]
@@ -180,6 +174,7 @@ async function getGroupedSets(cardNames: string[], ignoredCardNames: string[] = 
       if (!cardsList.includes(cardName)) {
         continue;
       }
+
       if (!setSeen.has(setId) && cardsList.length) {
         setSeen.add(cardName);
         // remove the set list by that id
@@ -247,7 +242,8 @@ function readLocalStorageForAll() {
 
 async function getCardSetsOnly() {
   // const data = readLocalStorageForAll();
-  const storage = checkStorage("allSetsByCode")
+  const stringKey = cardNames.join("")
+  const storage = checkStorage(stringKey)
   if (storage) {
     return storage
   }
@@ -263,7 +259,7 @@ async function getCardSetsOnly() {
     cardSetsOnly[cardName] = sets
   }
 
-  localStorage.setItem("allSetsByCode", JSON.stringify(cardSetsOnly));
+  localStorage.setItem("stringKey", JSON.stringify(cardSetsOnly));
   return cardSetsOnly
 }
 
@@ -294,6 +290,10 @@ async function groupBySets() {
   for (const [cardName, cardSets] of Object.entries(cardSetsOnly)) {
 
     for (const set of cardSets) {
+      if(set.length === 4) {
+        console.log("uh oh this is an unofficial set, skipping!", set)
+        continue
+      }
       // console.log(set)
       if (allSets[set]) {
         allSets[set].push(cardName);
