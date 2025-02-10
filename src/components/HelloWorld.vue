@@ -1,16 +1,6 @@
 <template>
   <h1>Hello world!</h1>
   <MoxfieldParser @parsedInput="handleParsedInput"/>
-<!--  <button @click="fetchAll">retrieveCardPrintings</button>-->
-<!--  <button @click="readLocalStorageForAll">readLocalStorageForAll</button>-->
-<!--  <button @click="getCardSetsOnly">printSets</button>-->
-<!--  <button @click="()=> getGroupedSets(cardNames)">getGroupedSets</button>-->
-<!--  <button @click="getGroupAllSetsByCode">getGroupAllSetsByCode</button>-->
-<!--  <br>-->
-<!--  <div>-->
-<!--    <pre>{{ sharedSetsDisplay }}</pre>-->
-<!--  </div>-->
-
   <br>
   <br>
   <button @click="loadAllSets">Load All Sets</button>
@@ -84,6 +74,7 @@ async function loadAllSets() {
 }
 
 async function buildAvailableSets(cardNames: string[], setCodesToIgnore: string[] = [], alreadyPickedCards:string[] = []) {
+   // this calculates how many sets are remaining to pick from based on card names and cards to ignore
    const setsAvailable = Object.entries(await getGroupedSets(cardNames, alreadyPickedCards))
       .filter(([setCode]) => !setCodesToIgnore.includes(setCode))
       .map(([setCode, cards]) => ({ setCode, cards }));
@@ -142,9 +133,6 @@ async function getGroupAllSetsByCode() {
   console.log("setsByCode", setsByCode)
   return setsByCode
 }
-
-
-
 
 // ignored cards names just aren't copied from the set data
 async function getGroupedSets(cardNames: string[], ignoredCardNames: string[] = []) {
@@ -230,18 +218,7 @@ async function fetchAll() {
   return result; // Return the combined result object
 }
 
-function readLocalStorageForAll() {
-  const data: Record<string, Object> = {}
-  for (const cardName of cardNames) {
-    let value = localStorage.getItem(cardName) ?? "{}"
-    data[cardName] = JSON.parse(value)
-  }
-  // console.log("ALL DATA", data)
-  return data
-}
-
 async function getCardSetsOnly() {
-  // const data = readLocalStorageForAll();
   const stringKey = cardNames.join("")
   const storage = checkStorage(stringKey)
   if (storage) {
