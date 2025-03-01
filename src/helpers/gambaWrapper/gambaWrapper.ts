@@ -1,5 +1,7 @@
 import {ScryFall} from "../../apiWrapper/ScryFall.ts";
 import type {IScryfallSet} from "./types/setType.ts";
+import type {IScryfallCard} from "../../apiWrapper/types/scryFallCard.ts";
+import type {cardName, setCode, setWithCards} from "../../apiWrapper/types/misc.ts";
 
 //global for now to keep things simple
 const scryFall = new ScryFall();
@@ -13,14 +15,14 @@ function checkStorage(storageKey: string) {
 }
 
 
-async function getCardSetsOnly(cardNames: string[]): Promise<IScryfallSet[]> {
+async function getSetsByCardNames(cardNames: string[]): Promise<Record<cardName, Array<setCode>>> {
     const stringKey = cardNames.join("")
     const storage = checkStorage(stringKey)
     if (storage) {
         return storage
     }
-    const data = await fetchAll(cardNames);
-    console.log("fetchAll", data);
+    const data = await fetchAllCards(cardNames);
+    console.log("fetchAllCards", data);
     const cardSetsOnly: Record<string, Array<string>> = {}
     for (const cardName of cardNames) {
         const cardData: Array<any> = data[cardName]
@@ -30,13 +32,14 @@ async function getCardSetsOnly(cardNames: string[]): Promise<IScryfallSet[]> {
         }
         cardSetsOnly[cardName] = sets
     }
+    console.log("cardSetsOnly", cardSetsOnly)
 
     localStorage.setItem("stringKey", JSON.stringify(cardSetsOnly));
     return cardSetsOnly
 }
 
 // this feels like it can be seperated out to another class
-async function getCardPrintings(cardName: string) {
+async function getCardPrintings(cardName: string) : Promise<Array<IScryfallCard>> {
     const storage = checkStorage(cardName)
     if (storage) {
         return storage
@@ -47,8 +50,9 @@ async function getCardPrintings(cardName: string) {
 }
 
 // groups the cards by sets does NOT do any filtering or grouping beyond that
-async function groupBySets(cardNames: string[]): Promise<IScryfallSet[]> {
-    const cardSetsOnly: Record<any, any> = await getCardSetsOnly(cardNames);
+// returns a set of cards wher the key is the set code and all the cards that belong to that set
+async function getCardsGroupedBySet(cardNames: string[]): Promise<Record<string, string[]>> {
+    const cardSetsOnly: Record<any, any> = await getSetsByCardNames(cardNames);
     const allSets: Record<string, Array<string>> = {}
 
     for (const [cardName, cardSets] of Object.entries(cardSetsOnly)) {
@@ -72,14 +76,14 @@ async function groupBySets(cardNames: string[]): Promise<IScryfallSet[]> {
 
 
 // fetches all the cards to get their card printings or reads from local storage
-async function fetchAll(cardNames: string[]): Promise<IScryfallSet[]> {
+async function fetchAllCards(cardNames: string[]): Promise<Record<cardName, IScryfallCard[]>> {
     const delay = 100;
 
     // Initialize an empty object to accumulate the results
-    const result: Record<string, Record<any, any>> = {};
+    const result: Record<string, IScryfallCard[]> = {};
 
     const promises = cardNames.map((cardName, index) => {
-        return new Promise((resolve) => {
+        return new Promise<void>((resolve) => {
             setTimeout(async () => {
                 // Await the async function
                 result[cardName] = await getCardPrintings(cardName); // Add the result to the dictionary
@@ -97,22 +101,18 @@ async function fetchAll(cardNames: string[]): Promise<IScryfallSet[]> {
 export class GambaWrapper {
     private scryFall: ScryFall;
     private initialCardNames: string[];
-    //todo type this!!!!
-    private originalSetsByCard: Record<any, any>
+
+    public originalSetsByCard: Record<setCode, cardName[]>;
 
     // This only runs once, for now used to just fetch names and basic data from the set
     public setsByCode: Record<string, IScryfallSet> = {}
 
 
     // this is the current set and cards
-    public runningAvailableSetsAndCardsPerSet;
+    public runningAvailableSetsAndCardsPerSet: setWithCards[];
 
-    // const pickedCards = ref<string[]>([])
-    // const pickedSets= ref<string[]>([])
-    // const cardsInPickedSet = reactive({})
-
-    private pickedCards;
-    private pickedSets;
+    private pickedCards: string[];
+    private pickedSets: setCode[];
     private cardsInPickedSet: Record<string, string>;
 
     private cardNames;
@@ -125,6 +125,10 @@ export class GambaWrapper {
 
         //defaults
 
+        this.originalSetsByCard = {}
+        console.log("originalSetsByCard",this.originalSetsByCard)
+
+
         this.pickedCards = [];
         this.pickedSets = [];
         this.cardsInPickedSet = {};
@@ -133,7 +137,8 @@ export class GambaWrapper {
 
     }
 
-    async getGroupAllSetsByCode() {
+    // literally just returns a dictionary of all set objects with the key being the set id
+    async getSetsByCode() {
         let allSets: Array<any> = checkStorage("allSets")
         console.log("all sets check")
         if (!allSets) {
@@ -151,11 +156,15 @@ export class GambaWrapper {
 
     // ignored cards names just aren't copied from the set data
     // this also feels like it can be seperated out to another class
-    async getGroupedSets(cardNames: string[], ignoredCardNames: string[] = []) {
+    // returns all grouped cards by set if possible and then returns all remaining singles
+    // ignoring ignoredCards
+    // TODO get rid of ignored cards? can't we just keep a running track of original cards
+    // vs cards remaining
+    async getFilteredCardsGroupedBySet(cardNames: string[], ignoredCardNames: string[] = []): Promise<Record<setCode, cardName[]>> {
         if (!cardNames.length) {
             return {}
         }
-        const sets = await groupBySets(cardNames);
+        const sets = await getCardsGroupedBySet(cardNames);
         // console.log("sets", sets)
 
         const filteredSets: Record<string, string[]> = {}
@@ -164,7 +173,6 @@ export class GambaWrapper {
 
         const sortedData =
             Object.entries(sets).sort(([, a], [, b]) => {
-                // console.log(a)
                 return b.length - a.length
             })
         // sorted data where each value is [setId, [...array_values]]
@@ -175,7 +183,6 @@ export class GambaWrapper {
                 // console.log("setData", setData)
                 const setId = setData[0]
                 const cardsList = setData[1].filter( cardName => !ignoredCardNames.includes(cardName))
-                // console.log('setId', setId, cardsList)
                 if (!cardsList.includes(cardName)) {
                     continue;
                 }
@@ -190,8 +197,6 @@ export class GambaWrapper {
                             cardsAdded.add(card);
                         }
                         filteredSets[setId] = [...cardsList]
-                        // delete cardsList[setId];
-                        // break;
                     }
                 }
             }
@@ -216,7 +221,7 @@ export class GambaWrapper {
     // this can definitely be seperated out to another class!!!!
     async buildAvailableSets(cardNames: string[], setCodesToIgnore: string[] = [], alreadyPickedCards:string[] = []) {
         // this calculates how many sets are remaining to pick from based on card names and cards to ignore
-        const setsAvailable = Object.entries(await this.getGroupedSets(cardNames, alreadyPickedCards))
+        const setsAvailable = Object.entries(await this.getFilteredCardsGroupedBySet(cardNames, alreadyPickedCards))
             .filter(([setCode]) => !setCodesToIgnore.includes(setCode))
             .map(([setCode, cards]) => ({ setCode, cards }));
 
@@ -235,8 +240,8 @@ export class GambaWrapper {
 
     // this is the entry point
     async loadAllSets() {
-        this.setsByCode = await this.getGroupAllSetsByCode()
-        this.originalSetsByCard = await this.getGroupedSets(this.initialCardNames)
+        this.setsByCode = await this.getSetsByCode()
+        this.originalSetsByCard = await this.getFilteredCardsGroupedBySet(this.initialCardNames)
         // deep copy original
         await this.buildAvailableSets(this.initialCardNames)
     }
@@ -251,7 +256,7 @@ export class GambaWrapper {
         // this could be saved off so we don't have to rebuild everytime
         // is this gonna cause issues?? with passing in pickedCards,
         console.log("remaing ", remainingCards, "picked sets", this.pickedCards)
-        const originalCardsBySet: Record<string, any> = await this.getGroupedSets(remainingCards, this.pickedCards)
+        const originalCardsBySet: Record<string, any> = await this.getFilteredCardsGroupedBySet(remainingCards, this.pickedCards)
         console.log("cards picked set thingy plz check", originalCardsBySet, "setcode", originalCardsBySet[setCode])
         const cardsPicked = originalCardsBySet[setCode]
         this.cardsInPickedSet[setCode] = cardsPicked
@@ -265,7 +270,7 @@ export class GambaWrapper {
         remainingCards = this.cardNames.filter(cardName => !this.pickedCards.includes(cardName))
         console.log("remaining cards", remainingCards)
         const remainingCardsBySet = Object.fromEntries(
-            Object.entries(await this.getGroupedSets(remainingCards, this.pickedCards))
+            Object.entries(await this.getFilteredCardsGroupedBySet(remainingCards, this.pickedCards))
                 .filter(([setCode, _cards]) => !this.pickedSets.includes(setCode))
         )
         console.log("cardsBySet", remainingCardsBySet)

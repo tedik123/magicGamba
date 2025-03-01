@@ -1,3 +1,5 @@
+import type {IScryfallCard} from "./types/scryFallCard.ts";
+
 const baseUrl = 'https://api.scryfall.com';
 
 export class ScryFall {
@@ -16,7 +18,7 @@ export class ScryFall {
         return cardResponseJson && cardResponseJson.length ? cardResponseJson[0] : null;
     }
 
-    async getCardPrintings(exactCardName: string, uniqueSets = false) {
+    async getCardPrintings(exactCardName: string, uniqueSets = false): Promise<Array<IScryfallCard>> {
         /**
          * Search for all printings of a card across different sets using the Scryfall API.
          *
@@ -49,26 +51,14 @@ export class ScryFall {
                 throw new Error(`No cards found with name: ${exactCardName}`);
             }
 
-            // Extract relevant set information for each printing
-            // const printings = data.data.map(card => ({
-            //     setName: card.set_name,
-            //     setCode: card.set,
-            //     set_type: card.set_type,
-            //     set_uri: card.set_uri,
-            //     collectorNumber: card.collector_number,
-            //     rarity: card.rarity,
-            //     releaseDate: card.released_at,
-            //     imageUrl: card.image_uris?.normal || null
-            // }));
-
-            const printings = data.data;
+            const printings: Array<IScryfallCard> = data.data;
             if (!uniqueSets) {
                 return printings;
             }
 
             // filter out any that share the same unique set
             const set = new Set();
-            const uniquePrintings = [];
+            const uniquePrintings: Array<IScryfallCard> = [];
             for (const print of printings) {
                 if (!set.has(print.set)) {
                     set.add(print.set);

@@ -41,6 +41,7 @@ const cardNames = ["Lightning Bolt", "Shock", "Ajani's Welcome"]
 const gambaWrapper = reactive(new GambaWrapper(cardNames));
 
 
+
 function handleParsedInput(parsedInput: Array<Record<string, string>>) {
   // Removes land as it's not relevant for opening packs
   const basicLands = ["plains", "island", "mountain", "forest", "swamp"];
