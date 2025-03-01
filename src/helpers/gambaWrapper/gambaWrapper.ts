@@ -39,7 +39,7 @@ async function getSetsByCardNames(cardNames: string[]): Promise<Record<cardName,
 }
 
 // this feels like it can be seperated out to another class
-async function getCardPrintings(cardName: string) : Promise<Array<IScryfallCard>> {
+async function getCardPrintings(cardName: string): Promise<Array<IScryfallCard>> {
     const storage = checkStorage(cardName)
     if (storage) {
         return storage
@@ -58,7 +58,7 @@ async function getCardsGroupedBySet(cardNames: string[]): Promise<Record<string,
     for (const [cardName, cardSets] of Object.entries(cardSetsOnly)) {
 
         for (const set of cardSets) {
-            if(set.length === 4) {
+            if (set.length === 4) {
                 console.log("uh oh this is an unofficial set, skipping!", set)
                 continue
             }
@@ -126,7 +126,7 @@ export class GambaWrapper {
         //defaults
 
         this.originalSetsByCard = {}
-        console.log("originalSetsByCard",this.originalSetsByCard)
+        console.log("originalSetsByCard", this.originalSetsByCard)
 
 
         this.pickedCards = [];
@@ -182,7 +182,7 @@ export class GambaWrapper {
             for (const setData of sortedData) {
                 // console.log("setData", setData)
                 const setId = setData[0]
-                const cardsList = setData[1].filter( cardName => !ignoredCardNames.includes(cardName))
+                const cardsList = setData[1].filter(cardName => !ignoredCardNames.includes(cardName))
                 if (!cardsList.includes(cardName)) {
                     continue;
                 }
@@ -219,11 +219,11 @@ export class GambaWrapper {
 
 
     // this can definitely be seperated out to another class!!!!
-    async buildAvailableSets(cardNames: string[], setCodesToIgnore: string[] = [], alreadyPickedCards:string[] = []) {
+    async buildAvailableSets(cardNames: string[], setCodesToIgnore: string[] = [], alreadyPickedCards: string[] = []) {
         // this calculates how many sets are remaining to pick from based on card names and cards to ignore
         const setsAvailable = Object.entries(await this.getFilteredCardsGroupedBySet(cardNames, alreadyPickedCards))
             .filter(([setCode]) => !setCodesToIgnore.includes(setCode))
-            .map(([setCode, cards]) => ({ setCode, cards }));
+            .map(([setCode, cards]) => ({setCode, cards}));
 
         // sort by number of cards
         setsAvailable.sort((a, b) => b.cards.length - a.cards.length);
@@ -261,7 +261,7 @@ export class GambaWrapper {
         const cardsPicked = originalCardsBySet[setCode]
         this.cardsInPickedSet[setCode] = cardsPicked
         for (const card of cardsPicked) {
-            if(!this.pickedCards.includes(card)) {
+            if (!this.pickedCards.includes(card)) {
                 this.pickedCards.push(card)
             }
         }
@@ -274,7 +274,7 @@ export class GambaWrapper {
                 .filter(([setCode, _cards]) => !this.pickedSets.includes(setCode))
         )
         console.log("cardsBySet", remainingCardsBySet)
-        if(Object.keys(remainingCardsBySet).length === 0) {
+        if (Object.keys(remainingCardsBySet).length === 0) {
             console.log("ALL DONE!")
         }
         console.log("cardsPicked", cardsPicked)
