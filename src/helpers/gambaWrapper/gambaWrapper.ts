@@ -98,6 +98,7 @@ async function fetchAllCards(cardNames: string[]): Promise<Record<cardName, IScr
 }
 
 
+
 export class GambaWrapper {
     private scryFall: ScryFall;
     private initialCardNames: string[];
